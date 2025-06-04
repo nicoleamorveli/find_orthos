@@ -38,4 +38,6 @@ usage: ortho_counts.py [-h] [--output OUTPUT] [--min-count MIN_COUNT] [--verbose
     - `A0A064BYA0`
     - `A0A174IDN3` (a hit in `PF04087`, relevance uncertain)
 
-
+## New version 
+this new version ortho_full_taxonomy.py gives the detailed taxonomy divided by genus (I think) but it's very long
+ 
