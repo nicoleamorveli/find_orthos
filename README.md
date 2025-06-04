@@ -27,11 +27,15 @@ It identifies potential orthologs that are captured by OMA but missed by Pfam.
 usage: ortho_counts.py [-h] [--output OUTPUT] [--min-count MIN_COUNT] [--verbose]
 
 ## Considerations
-It only takes uniprot hits from pfam seq, but OMA uses the whole uniprot database so a lot of hits may seem not be found by the selected
-Pfam but when cheking Interpro they are there.
-The default of counts is 3 but when using counts =1 a lot of hits not present in Pfam (Interpro) are retrieved. 
-A lot of false positives are also found, but in the report the uniprot description is available to detect them faster.
-Eg: in PF10181 (c=1), A0A6P4EDK6 (Drosophila) is found but a lot of false positives are also found. 
-A0A064BYA0 and A0A174IDN3 (hits in PF04087) not sure if these are relevant
+- Only UniProt hits from the Pfam `seq` file are considered, while OMA uses the entire UniProt database.
+- This means many hits may appear to be missing from the selected Pfam but can actually be found when checking InterPro.
+- The default `count` is 3, but setting `count = 1` retrieves many additional hits not present in Pfam (as seen in InterPro).
+- Lower count thresholds (e.g., 1) also introduce many false positives.
+- However, the report includes full UniProt descriptions to help identify false positives more easily.
+- **Example**: In `PF10181` with `count = 1`:
+  - `A0A6P4EDK6` (from *Drosophila*) is found.
+  - Many false positives also appear, such as:
+    - `A0A064BYA0`
+    - `A0A174IDN3` (a hit in `PF04087`, relevance uncertain)
 
 
