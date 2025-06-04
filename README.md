@@ -26,6 +26,10 @@ It identifies potential orthologs that are captured by OMA but missed by Pfam.
 
 usage: ortho_counts.py [-h] [--output OUTPUT] [--min-count MIN_COUNT] [--verbose]
 
+Location 
+/homes/nflores/ortho_counts.py
+/homes/nflores/ortho_full_taxonomy.py 
+
 ## Considerations
 - Only UniProt hits from the Pfam `seq` file are considered, while OMA uses the entire UniProt database.
 - This means many hits may appear to be missing from the selected Pfam but can actually be found when checking InterPro.
