@@ -38,9 +38,9 @@ Location
 - However, the report includes full UniProt descriptions to help identify false positives more easily.
 - **Example**: In `PF10181` with `count = 1`:
   - `A0A6P4EDK6` (from *Drosophila*) is found.
-  - Many false positives also appear, such as:
+  - But many other false positives appear. These proteins (not sure about their relevance) also appear:
     - `A0A064BYA0`
-    - `A0A174IDN3` (a hit in `PF04087`, relevance uncertain)
+    - `A0A174IDN3` (both entries are found by `PF04087`)
 
 ## New version 
 this new version ortho_full_taxonomy.py gives the detailed taxonomy divided by genus (I think) but it's very long
