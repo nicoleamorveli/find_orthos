@@ -44,5 +44,5 @@ Location
     - `A0A174IDN3` (both entries are found by `PF04087`)
 
 ## New version 
-this new version ortho_full_taxonomy.py gives the detailed taxonomy divided by genus (I think) but it's very long
+this new version ortho_full_taxonomy.py gives the detailed taxonomy divided by genus (I think) but the report it's very long
  
