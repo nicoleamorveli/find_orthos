@@ -1,10 +1,10 @@
-# 🧬 Fast Pfam-OMA Analyzer
+#  Fast Pfam-OMA Analyzer
 
 A high-performance Python tool for analyzing Pfam protein families against OMA (Orthologous MAtrix) ortholog groups using bulk UniProt API queries.
 
 ---
 
-## 📖 Overview
+## Overview
 
 This tool identifies potential orthologs that OMA captures but Pfam families don't by:
 
@@ -13,22 +13,15 @@ This tool identifies potential orthologs that OMA captures but Pfam families don
 - Finding proteins with the same OMA fingerprints that lack the Pfam domain  
 - Generating comprehensive reports of the analysis  
 
-### 🔑 Key Features
-
-- ⚡ **Fast bulk queries** – Uses UniProt's streaming API instead of individual requests  
-- 🔍 **No local files needed** – Works directly with Pfam IDs  
-- 📊 **Detailed reporting** – Comprehensive analysis  
-- 🎯 **Configurable thresholds** – Filter results by minimum occurrence counts  
-
 ---
 
-## 🚀 Usage
+##  Usage
 
 
 ```bash
 python fast_pfam_oma_analyzer.py PF10181
 ```
-### ⚙️ Advanced Usage
+### Advanced Usage
 Custom minimum count threshold
 
 ```bash
@@ -62,13 +55,13 @@ Proteins unique to OMA: 156
 
 ---
 
-## 📍 Location
+## Location
 
 `/homes/nflores/find_orthologues.py`
 
 ---
 
-## 📦 Requirements
+##  Requirements
 
 - Python 3.6+  
 - `requests` library
@@ -76,7 +69,7 @@ Proteins unique to OMA: 156
 
 ---
 
-## ⚠️ Considerations
+##  Considerations
 
 - The default `count` is 3.
 - Lower count thresholds (e.g., 1) may introduce many false positives.
