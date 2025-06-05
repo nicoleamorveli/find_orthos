@@ -25,15 +25,15 @@ python fast_pfam_oma_analyzer.py PF10181
 Custom minimum count threshold (mininum OMA appearences in the Uniprot)
 
 ```bash
-python fast_pfam_oma_analyzer.py PF10181 -c 5
+python find_orthologues.py PF10181 -c 5
 ```
 Custom report output name 
 ```bash
-python fast_pfam_oma_analyzer.py PF10181 -o output.txt
+python find_orthologues.py PF10181 -o output.txt
 ```
 
 ```bash
-python fast_pfam_oma_analyzer.py PF10181 --verbose
+python find_orthologues.py PF10181 --verbose
 ```
 ## 🧾 Command Line Options
 
