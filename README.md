@@ -1,40 +1,58 @@
-# find_orthos
+## Fast Pfam-OMA Analyzer
+A high-performance Python tool for analyzing Pfam protein families against OMA (Orthologous MAtrix) ortholog groups using bulk UniProt API queries.
+## Overview
+This tool identifies potential orthologs that OMA captures but Pfam families don't by:
 
-This script analyzes Pfam families by comparing them with OMA (Orthologous MAtrix) data.  
-It identifies potential orthologs that are captured by OMA but missed by Pfam.
-The script is also quite slow (20 minutes)
+- Fetching all proteins in a Pfam family using bulk UniProt queries
+- Extracting OMA fingerprints from those proteins
+- Finding proteins with the same OMA fingerprints that lack the Pfam domain
+- Generating comprehensive reports of the analysis
 
-**Input**: Pfam folder (containing the `scores` file)  
-**Output**: UniProt IDs captured by OMA but not by Pfam
+Key Features
 
----
-
-## Steps
-
-1. Reads the `scores` file from the Pfam folder and retrieves the UniProt IDs (only hits in the `ALIGN` file).
-2. Retrieves the OMA fingerprint for each UniProt ID.
-3. Creates a list and filters it based on the number of appearances (default count = 3).
-4. The count is user-defined and corresponds to how many times an OMA ID appears in the Pfam UniProt IDs.
-5. Orders the list by number of appearances (i.e., relevance).
-6. Creates another list by gathering all UniProt IDs associated with each OMA identifier.
-7. Filters this list to keep only UniProt IDs that are uniquely associated with one OMA identifier.
-8. These are unique hits captured by OMA but not Pfam.
-9. Builds a report, including the counts of OMA appearances.
-
----
+⚡ Fast bulk queries - Uses UniProt's streaming API instead of individual requests
+🔍 No local files needed - Works directly with Pfam IDs
+📊 Detailed reporting - Comprehensive analysis 
+🎯 Configurable thresholds - Filter results by minimum occurrence counts
 
 ## Usage
+# Basic Usage
+bashpython fast_pfam_oma_analyzer.py PF10181
+# Advanced Usage
+bash# Custom minimum count threshold
+python fast_pfam_oma_analyzer.py PF10181 --min-count 5
 
-usage: ortho_counts.py [-h] [--output OUTPUT] [--min-count MIN_COUNT] [--verbose]
+# Custom output file
+python fast_pfam_oma_analyzer.py PF10181 --output detailed_report.txt
 
-Location 
-- /homes/nflores/ortho_counts.py
-- /homes/nflores/ortho_full_taxonomy.py 
+# Verbose logging for debugging
+python fast_pfam_oma_analyzer.py PF10181 --verbose
+
+# Command Line Options
+OptionDescriptionDefaultpfam_idPfam family ID (e.g., PF10181)Required--min-count, -cMinimum occurrences for OMA groups3--output, -oOutput report filereport.txt--verbose, -vEnable detailed loggingFalse
+
+# Example Output
+SUMMARY:
+Pfam PF10181: 1,247 proteins
+OMA groups (>=3 occurrences): 23
+Proteins unique to OMA: 156
+The tool generates a detailed report showing:
+
+# Summary statistics
+Frequent OMA groups with occurrence counts
+Complete list of proteins unique to OMA groups (not in Pfam)
+
+# Location 
+/homes/nflores/find_orthologues.py
+
+## Requirements
+
+Python 3.6+
+requests library
 
 ## Considerations
-- Only UniProt hits from the Pfam `seq` file are considered, while OMA uses the entire UniProt database.
-- This means many hits may appear to be missing from the selected Pfam but can actually be found when checking InterPro.
-- The default `count` is 3, but setting `count = 1` retrieves many additional hits not present in Pfam (as seen in InterPro).
+
+- The default `count` is 3.
 - Lower count thresholds (e.g., 1) also introduce many false positives.
 - However, the report includes full UniProt descriptions to help identify false positives more easily.
 - **Example**: In `PF10181` with `count = 1`:
@@ -43,6 +61,5 @@ Location
     - `A0A064BYA0`
     - `A0A174IDN3` (both entries are found by `PF04087`)
 
-## New version 
-this new version ortho_full_taxonomy.py gives the detailed taxonomy divided by genus (I think) but the report it's very long
+
  
