@@ -24,7 +24,6 @@ This tool identifies potential orthologs that OMA captures but Pfam families don
 
 ## 🚀 Usage
 
-### 🔧 Basic Usage
 
 ```bash
 python fast_pfam_oma_analyzer.py PF10181
@@ -32,13 +31,16 @@ python fast_pfam_oma_analyzer.py PF10181
 ### ⚙️ Advanced Usage
 Custom minimum count threshold
 
-```bash python fast_pfam_oma_analyzer.py PF10181 --min-count 5
+```bash
+python fast_pfam_oma_analyzer.py PF10181 --min-count 5
 ```
 
-```python fast_pfam_oma_analyzer.py PF10181 --output detailed_report.txt
+```bash
+python fast_pfam_oma_analyzer.py PF10181 --output detailed_report.txt
 ```
 
-```python fast_pfam_oma_analyzer.py PF10181 --verbose
+```bash
+python fast_pfam_oma_analyzer.py PF10181 --verbose
 ```
 ## 🧾 Command Line Options
 
