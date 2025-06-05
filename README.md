@@ -22,14 +22,14 @@ This tool identifies potential orthologs that OMA captures but Pfam families don
 python fast_pfam_oma_analyzer.py PF10181
 ```
 ### Advanced Usage
-Custom minimum count threshold
+Custom minimum count threshold (mininum OMA appearences in the Uniprot)
 
 ```bash
-python fast_pfam_oma_analyzer.py PF10181 --min-count 5
+python fast_pfam_oma_analyzer.py PF10181 -c 5
 ```
-
+Custom report output name 
 ```bash
-python fast_pfam_oma_analyzer.py PF10181 --output detailed_report.txt
+python fast_pfam_oma_analyzer.py PF10181 -o output.txt
 ```
 
 ```bash
