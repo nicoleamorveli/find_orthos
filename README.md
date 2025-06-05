@@ -2,6 +2,7 @@
 
 This script analyzes Pfam families by comparing them with OMA (Orthologous MAtrix) data.  
 It identifies potential orthologs that are captured by OMA but missed by Pfam.
+The script is also quite slow (20 minutes)
 
 **Input**: Pfam folder (containing the `scores` file)  
 **Output**: UniProt IDs captured by OMA but not by Pfam
