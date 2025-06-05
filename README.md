@@ -60,13 +60,6 @@ OMA groups (>=3 occurrences): 23
 Proteins unique to OMA: 156
 ```
 
-The tool generates a detailed report showing:
-
-### 📊 Summary Statistics
-
-- Frequent OMA groups with occurrence counts  
-- Complete list of proteins unique to OMA groups (not in Pfam)  
-
 ---
 
 ## 📍 Location
