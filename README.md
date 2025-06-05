@@ -1,6 +1,6 @@
-#  Fast Pfam-OMA Analyzer
+#  Find orthologues
 
-A high-performance Python tool for analyzing Pfam protein families against OMA (Orthologous MAtrix) ortholog groups using bulk UniProt API queries.
+This tool analyzes Pfam protein families against OMA (Orthologous MAtrix) ortholog groups to find missing orthologues.
 
 ---
 
