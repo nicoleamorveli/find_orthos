@@ -39,7 +39,7 @@ class FastPfamOMAAnalyzer:
 
     def get_pfam_proteins_bulk(self, pfam_id: str) -> Tuple[List[Dict], Set[str]]:
         """
-        Get all proteins containing the specified Pfam domain using bulk UniProt API.
+        Get all proteins containing the specified Pfam domain using UniProt API.
         Returns tuple of (protein_data_list, oma_fingerprints_set)
         """
         logger.info(f"Fetching all proteins with Pfam domain {pfam_id}")
