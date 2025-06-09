@@ -2,12 +2,11 @@
 """
 Fast Pfam OMA Ortholog Analyzer
 
-This script analyzes Pfam families by comparing them with OMA (Orthologous Matrix) data
-using bulk UniProt API queries for much faster performance.
+This script analyzes Pfam families by comparing them with OMA (Orthologous Matrix). 
 
 Usage:
-    python fast_pfam_oma_analyzer.py PF10181
-    python fast_pfam_oma_analyzer.py PF10181 --min-count 5 --output my_report.txt
+    python3 fast_pfam_oma_analyzer.py PF10181
+    python3 fast_pfam_oma_analyzer.py PF10181 -c 5 -o my_report.txt
 """
 
 import sys
@@ -39,7 +38,7 @@ class FastPfamOMAAnalyzer:
 
     def get_pfam_proteins_bulk(self, pfam_id: str) -> Tuple[List[Dict], Set[str]]:
         """
-        Get all proteins containing the specified Pfam domain using UniProt API.
+        Get all proteins containing the specified Pfam domain using bulk UniProt API.
         Returns tuple of (protein_data_list, oma_fingerprints_set)
         """
         logger.info(f"Fetching all proteins with Pfam domain {pfam_id}")
@@ -165,18 +164,28 @@ class FastPfamOMAAnalyzer:
                 logger.debug(f"Content preview (first 200 chars): {repr(content[:200])}")
             return [], set()
 
-    def get_oma_proteins_not_in_pfam(self, oma_fingerprint: str, pfam_id: str) -> List[Dict]:
+    def get_oma_proteins(self, oma_fingerprint: str, pfam_id: str, in_pfam: bool = True) -> List[Dict]:
         """
-        Get all proteins with the OMA fingerprint that DON'T have the specified Pfam domain.
+        Get proteins with the OMA fingerprint, either in the Pfam family or not.
+        
+        Args:
+            oma_fingerprint: The OMA fingerprint to search for
+            pfam_id: The Pfam family ID
+            in_pfam: If True, get proteins that have the Pfam domain. If False, get proteins that don't.
         """
-        logger.info(f"Fetching proteins with OMA fingerprint {oma_fingerprint} NOT in {pfam_id}")
+        if in_pfam:
+            logger.info(f"Fetching proteins with OMA fingerprint {oma_fingerprint} IN {pfam_id}")
+            query = f'(xref:oma-{oma_fingerprint}) AND {pfam_id}'
+        else:
+            logger.info(f"Fetching proteins with OMA fingerprint {oma_fingerprint} NOT in {pfam_id}")
+            query = f'(xref:oma-{oma_fingerprint}) NOT {pfam_id}'
         
         url = f"{self.uniprot_base_url}/uniprotkb/stream"
         params = {
             'compressed': 'true',
             'fields': 'accession,id,protein_name,xref_pfam,xref_oma',
             'format': 'tsv',
-            'query': f'(xref:oma-{oma_fingerprint}) NOT {pfam_id}'
+            'query': query
         }
         
         try:
@@ -260,7 +269,8 @@ class FastPfamOMAAnalyzer:
                             logger.debug(f"Error processing line {line_num}: {e}")
                             continue
             
-            logger.info(f"Found {len(proteins)} proteins with OMA {oma_fingerprint} not in {pfam_id}")
+            action = "in" if in_pfam else "not in"
+            logger.info(f"Found {len(proteins)} proteins with OMA {oma_fingerprint} {action} {pfam_id}")
             return proteins
             
         except requests.RequestException as e:
@@ -356,7 +366,7 @@ class FastPfamOMAAnalyzer:
             logger.info(f"Processing OMA group {oma_fingerprint} ({pfam_count} in Pfam)")
             
             # Get proteins with this OMA fingerprint that don't have the Pfam domain
-            oma_only_proteins = self.get_oma_proteins_not_in_pfam(oma_fingerprint, pfam_id)
+            oma_only_proteins = self.get_oma_proteins(oma_fingerprint, pfam_id, in_pfam=False)
             
             # Get total OMA group size
             total_oma_size = self.get_total_oma_group_size(oma_fingerprint)
@@ -389,83 +399,84 @@ class FastPfamOMAAnalyzer:
 
     def generate_report(self, results: Dict, output_file: str = "report.txt") -> str:
         """
-        Generate a comprehensive report of the analysis.
+        Generate a comprehensive report of the analysis and write directly to file.
         """
         if not results:
             return "No results to report."
 
-        lines = []
-        lines.append("="*80)
-        lines.append("FAST PFAM-OMA ORTHOLOG ANALYSIS REPORT")
-        lines.append("="*80)
-        lines.append(f"Pfam Family: {results['pfam_id']}")
-        lines.append(f"Minimum Count Threshold: {results['min_count']}")
-        lines.append(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}")
-        lines.append("")
-        
-        lines.append("SUMMARY STATISTICS")
-        lines.append("-" * 50)
-        lines.append(f"Total proteins in Pfam family: {results['pfam_protein_count']}")
-        lines.append(f"OMA groups with >={results['min_count']} occurrences: {len(results['oma_fingerprints'])}")
-        lines.append(f"Proteins unique to OMA groups: {results['unique_to_oma_count']}")
-        lines.append("")
-
-        if results['oma_fingerprints']:
-            lines.append(f"FREQUENT OMA GROUPS (>={results['min_count']} occurrences)")
-            lines.append("-" * 50)
-            
-            # Sort by count in descending order
-            sorted_omas = sorted(results['oma_fingerprints'].items(), 
-                               key=lambda x: x[1], reverse=True)
-            
-            for oma_fingerprint, pfam_count in sorted_omas:
-                oma_data = results['unique_to_oma'].get(oma_fingerprint, {})
-                total_size = oma_data.get('total_oma_size', 0)
-                unique_count = oma_data.get('unique_count', 0)
-                
-                lines.append(f"{oma_fingerprint}: {pfam_count} in Pfam, "
-                           f"{total_size} total in OMA, {unique_count} unique to OMA")
-            lines.append("")
-
-        if results['unique_to_oma_count'] > 0:
-            lines.append("PROTEINS UNIQUE TO OMA GROUPS (Not in Pfam)")
-            lines.append("-" * 50)
-            
-            # Sort OMA groups by fingerprint for consistent output
-            for oma_fingerprint in sorted(results['unique_to_oma'].keys()):
-                oma_data = results['unique_to_oma'][oma_fingerprint]
-                unique_proteins = oma_data['unique_proteins']
-                
-                if unique_proteins:
-                    lines.append(f"OMA GROUP: {oma_fingerprint}")
-                    lines.append("=" * 60)
-                    
-                    # Sort proteins by accession
-                    sorted_proteins = sorted(unique_proteins, key=lambda x: x['accession'])
-                    
-                    for protein in sorted_proteins:
-                        accession = protein['accession']
-                        protein_name = protein['protein_name'][:80] + "..." if len(protein['protein_name']) > 80 else protein['protein_name']
-                        lines.append(f"      {accession} | {protein_name}")
-                    
-                    lines.append("")
-        else:
-            lines.append("No proteins found that are unique to OMA groups.")
-            lines.append("")
-
-        lines.append("="*80)
-
-        report_text = "\n".join(lines)
-        
-        # Save report to file
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(report_text)
+                # Write header
+                f.write("="*80 + "\n")
+                f.write("FAST PFAM-OMA ORTHOLOG ANALYSIS REPORT\n")
+                f.write("="*80 + "\n")
+                f.write(f"Pfam Family: {results['pfam_id']}\n")
+                f.write(f"Minimum Count Threshold: {results['min_count']}\n")
+                f.write(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
+                f.write("\n")
+                
+                # Write summary statistics
+                f.write("SUMMARY STATISTICS\n")
+                f.write("-" * 50 + "\n")
+                f.write(f"Total proteins in Pfam family: {results['pfam_protein_count']}\n")
+                f.write(f"OMA groups with >={results['min_count']} occurrences: {len(results['oma_fingerprints'])}\n")
+                f.write(f"Proteins unique to OMA groups: {results['unique_to_oma_count']}\n")
+                f.write("\n")
+
+                # Write frequent OMA groups section
+                if results['oma_fingerprints']:
+                    f.write(f"FREQUENT OMA GROUPS (>={results['min_count']} occurrences)\n")
+                    f.write("-" * 50 + "\n")
+                    
+                    # Sort by count in descending order
+                    sorted_omas = sorted(results['oma_fingerprints'].items(), 
+                                       key=lambda x: x[1], reverse=True)
+                    
+                    for oma_fingerprint, pfam_count in sorted_omas:
+                        oma_data = results['unique_to_oma'].get(oma_fingerprint, {})
+                        total_size = oma_data.get('total_oma_size', 0)
+                        unique_count = oma_data.get('unique_count', 0)
+                        
+                        f.write(f"{oma_fingerprint}: {pfam_count} in Pfam, "
+                               f"{total_size} total in OMA, {unique_count} unique to OMA\n")
+                    f.write("\n")
+
+                # Write unique proteins section
+                if results['unique_to_oma_count'] > 0:
+                    f.write("PROTEINS UNIQUE TO OMA GROUPS (Not in Pfam)\n")
+                    f.write("-" * 50 + "\n")
+                    
+                    # Sort OMA groups by fingerprint for consistent output
+                    for oma_fingerprint in sorted(results['unique_to_oma'].keys()):
+                        oma_data = results['unique_to_oma'][oma_fingerprint]
+                        unique_proteins = oma_data['unique_proteins']
+                        
+                        if unique_proteins:
+                            f.write(f"OMA GROUP: {oma_fingerprint}\n")
+                            f.write("=" * 60 + "\n")
+                            
+                            # Sort proteins by accession
+                            sorted_proteins = sorted(unique_proteins, key=lambda x: x['accession'])
+                            
+                            for protein in sorted_proteins:
+                                accession = protein['accession']
+                                protein_name = protein['protein_name'][:80] + "..." if len(protein['protein_name']) > 80 else protein['protein_name']
+                                f.write(f"      {accession} | {protein_name}\n")
+                            
+                            f.write("\n")
+                else:
+                    f.write("No proteins found that are unique to OMA groups.\n")
+                    f.write("\n")
+
+                # Write footer
+                f.write("="*80 + "\n")
+
             logger.info(f"Report saved to {output_file}")
+            return f"Report successfully written to {output_file}"
+            
         except IOError as e:
             logger.error(f"Failed to write report to {output_file}: {e}")
-        
-        return report_text
+            return f"Error: Failed to write report to {output_file}: {e}"
 
 def main():
     parser = argparse.ArgumentParser(
@@ -497,8 +508,8 @@ def main():
             logger.error("Analysis failed - no results generated")
             sys.exit(1)
 
-        report = analyzer.generate_report(results, args.output)
-        print(f"\nAnalysis complete! Report saved to {args.output}")
+        report_status = analyzer.generate_report(results, args.output)
+        print(f"\nAnalysis complete! {report_status}")
         
         # Print summary to console
         print(f"\nSUMMARY:")
