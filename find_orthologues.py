@@ -287,7 +287,8 @@ class FastPfamOMAAnalyzer:
 
     def generate_report(self, results: Dict, output_file: str = "report.txt") -> str:
         """
-        Generate a comprehensive report of the analysis and write directly to file.
+        Generate a comprehensive report of the analysis and write directly to file,
+        including UniProt status (Swiss-Prot or TrEMBL) for each protein.
         """
         if not results:
             return "No results to report."
@@ -302,8 +303,8 @@ class FastPfamOMAAnalyzer:
                 f.write(f"Minimum Count Threshold: {results['min_count']}\n")
                 f.write(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
                 f.write("\n")
-                
-                # Write summary statistics
+
+                # Summary statistics
                 f.write("SUMMARY STATISTICS\n")
                 f.write("-" * 50 + "\n")
                 f.write(f"Total proteins in Pfam family: {results['pfam_protein_count']}\n")
@@ -311,106 +312,52 @@ class FastPfamOMAAnalyzer:
                 f.write(f"Proteins unique to OMA groups: {results['unique_to_oma_count']}\n")
                 f.write("\n")
 
-                # Write frequent OMA groups section
+                # Frequent OMA groups
                 if results['oma_fingerprints']:
                     f.write(f"FREQUENT OMA GROUPS (>={results['min_count']} occurrences)\n")
                     f.write("-" * 50 + "\n")
-                    
-                    # Sort by count in descending order
-                    sorted_omas = sorted(results['oma_fingerprints'].items(), 
-                                       key=lambda x: x[1], reverse=True)
-                    
+
+                    sorted_omas = sorted(results['oma_fingerprints'].items(), key=lambda x: x[1], reverse=True)
                     for oma_fingerprint, pfam_count in sorted_omas:
                         oma_data = results['unique_to_oma'].get(oma_fingerprint, {})
                         total_size = oma_data.get('total_oma_size', 0)
                         unique_count = oma_data.get('unique_count', 0)
-                        
-                        f.write(f"{oma_fingerprint}: {pfam_count} in Pfam, "
-                               f"{total_size} total in OMA, {unique_count} unique to OMA\n")
+                        f.write(f"{oma_fingerprint}: {pfam_count} in Pfam, {total_size} total in OMA, {unique_count} unique to OMA\n")
                     f.write("\n")
 
-                # Write unique proteins section
+                # Unique proteins section
                 if results['unique_to_oma_count'] > 0:
                     f.write("PROTEINS UNIQUE TO OMA GROUPS (Not in Pfam)\n")
                     f.write("-" * 50 + "\n")
-                    
-                    # Sort OMA groups by fingerprint for consistent output
+
                     for oma_fingerprint in sorted(results['unique_to_oma'].keys()):
                         oma_data = results['unique_to_oma'][oma_fingerprint]
                         unique_proteins = oma_data['unique_proteins']
-                        
+
                         if unique_proteins:
                             f.write(f"OMA GROUP: {oma_fingerprint}\n")
                             f.write("=" * 60 + "\n")
-                            
-                            # Sort proteins by accession
+
                             sorted_proteins = sorted(unique_proteins, key=lambda x: x['accession'])
-                            
                             for protein in sorted_proteins:
                                 accession = protein['accession']
                                 protein_name = protein['protein_name'][:80] + "..." if len(protein['protein_name']) > 80 else protein['protein_name']
-                                f.write(f"      {accession} | {protein_name}\n")
-                            
+                                status = protein.get('uniprot_status', 'unknown')
+                                f.write(f"      {accession} | {protein_name} | status: {status}\n")
+
                             f.write("\n")
                 else:
-                    f.write("No proteins found that are unique to OMA groups.\n")
-                    f.write("\n")
+                    f.write("No proteins found that are unique to OMA groups.\n\n")
 
-                # Write footer
+                # Footer
                 f.write("="*80 + "\n")
 
             logger.info(f"Report saved to {output_file}")
             return f"Report successfully written to {output_file}"
-            
+
         except IOError as e:
             logger.error(f"Failed to write report to {output_file}: {e}")
             return f"Error: Failed to write report to {output_file}: {e}"
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Fast analysis of Pfam families vs OMA ortholog groups using bulk UniProt API queries"
-    )
-    parser.add_argument("pfam_id", help="Pfam family ID (e.g., PF10181)")
-    parser.add_argument("--output", "-o", default="report.txt", 
-                       help="Output file for the report (default: report.txt)")
-    parser.add_argument("--min-count", "-c", type=int, default=3, 
-                       help="Minimum count threshold for OMA groups (default: 3)")
-    parser.add_argument("--verbose", "-v", action="store_true", 
-                       help="Enable verbose logging")
-
-    args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    # Validate Pfam ID format
-    if not re.match(r'^PF\d{5}$', args.pfam_id):
-        logger.error(f"Invalid Pfam ID format: {args.pfam_id}. Expected format: PF##### (e.g., PF10181)")
-        sys.exit(1)
-
-    try:
-        analyzer = FastPfamOMAAnalyzer()
-        results = analyzer.analyze_pfam_family(args.pfam_id, min_count=args.min_count)
-        
-        if not results:
-            logger.error("Analysis failed - no results generated")
-            sys.exit(1)
-
-        report_status = analyzer.generate_report(results, args.output)
-        print(f"\nAnalysis complete! {report_status}")
-        
-        # Print summary to console
-        print(f"\nSUMMARY:")
-        print(f"Pfam {args.pfam_id}: {results['pfam_protein_count']} proteins")
-        print(f"OMA groups (>={args.min_count} occurrences): {len(results['oma_fingerprints'])}")
-        print(f"Proteins unique to OMA: {results['unique_to_oma_count']}")
-
-    except KeyboardInterrupt:
-        logger.info("Analysis interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Analysis failed with error: {e}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
