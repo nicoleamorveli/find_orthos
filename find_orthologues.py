@@ -37,168 +37,139 @@ class FastPfamOMAAnalyzer:
         self.request_delay = 0.1  # Small delay to be respectful
 
     def get_oma_proteins(self, oma_fingerprint: Optional[str] = None, pfam_id: Optional[str] = None, in_pfam: bool = True) -> Tuple[List[Dict], Set[str]]:
-        """
-        Unified function to get proteins based on OMA fingerprint and/or Pfam domain.
-        
-        Args:
-            oma_fingerprint: The OMA fingerprint to search for (optional)
-            pfam_id: The Pfam family ID (optional)
-            in_pfam: If True and pfam_id provided, include Pfam filter. If False, exclude Pfam filter.
-        
-        Returns:
-            Tuple of (protein_data_list, oma_fingerprints_set)
-        """
-        # Build the query based on parameters
-        query_parts = []
-        
-        if oma_fingerprint:
-            query_parts.append(f"xref:oma-{oma_fingerprint}")
-        
-        if pfam_id:
-            if in_pfam:
-                query_parts.append(pfam_id)
-                operation = "AND"
-            else:
-                query_parts.append(f"NOT {pfam_id}")
-                operation = "AND"
-        
-        # Construct the final query
-        if len(query_parts) == 1:
-            query = f"({query_parts[0]})"
+    """
+    Unified function to get proteins based on OMA fingerprint and/or Pfam domain,
+    with UniProt status (Swiss-Prot or TrEMBL) included.
+
+    Returns:
+        Tuple of (protein_data_list, oma_fingerprints_set)
+    """
+    query_parts = []
+
+    if oma_fingerprint:
+        query_parts.append(f"xref:oma-{oma_fingerprint}")
+
+    if pfam_id:
+        if in_pfam:
+            query_parts.append(pfam_id)
+            operation = "AND"
         else:
-            query = f"({query_parts[0]}) {operation} {query_parts[1]}"
-        
-        # Log the appropriate message
-        if oma_fingerprint and pfam_id:
-            action = "with" if in_pfam else "without"
-            logger.info(f"Fetching proteins with OMA fingerprint {oma_fingerprint} {action} Pfam domain {pfam_id}")
-        elif pfam_id:
-            logger.info(f"Fetching all proteins with Pfam domain {pfam_id}")
-        elif oma_fingerprint:
-            logger.info(f"Fetching all proteins with OMA fingerprint {oma_fingerprint}")
-        else:
-            logger.error("Either oma_fingerprint or pfam_id must be provided")
-            return [], set()
-        
-        url = f"{self.uniprot_base_url}/uniprotkb/stream"
-        params = {
-            'compressed': 'true',
-            'fields': 'accession,id,protein_name,xref_pfam,xref_oma',
-            'format': 'tsv',
-            'query': query
-        }
-        
-        try:
-            response = requests.get(url, params=params, stream=True, timeout=60)
-            response.raise_for_status()
-            
-            # Handle response content with better error handling
-            content = None
-            if response.headers.get('content-encoding') == 'gzip':
-                try:
-                    content = gzip.decompress(response.content).decode('utf-8', errors='replace')
-                except Exception as e:
-                    logger.warning(f"Error decompressing gzip for {oma_fingerprint}: {e}")
-                    # Try without compression
-                    params['compressed'] = 'false'
-                    response = requests.get(url, params=params, stream=True, timeout=60)
-                    response.raise_for_status()
-                    content = response.text
-            else:
-                content = response.text
-            
-            # Clean content: remove null bytes and other problematic characters
-            if content:
-                content = content.replace('\x00', '')  # Remove null bytes
-                content = content.replace('\r', '')    # Remove carriage returns that might cause issues
-                # Remove any other control characters except tabs and newlines
-                content = ''.join(char for char in content if char.isprintable() or char in '\t\n')
-            
-            if not content or not content.strip():
-                logger.warning(f"Empty response for OMA fingerprint {oma_fingerprint}")
-                return []
-            
-            # Parse TSV data
-            proteins = []
-            oma_fingerprints = set()
-            
+            query_parts.append(f"NOT {pfam_id}")
+            operation = "AND"
+
+    query = f"({query_parts[0]})" if len(query_parts) == 1 else f"({query_parts[0]}) {operation} {query_parts[1]}"
+
+    url = f"{self.uniprot_base_url}/uniprotkb/stream"
+    params = {
+        'compressed': 'true',
+        'fields': 'accession,id,protein_name,xref_pfam,xref_oma,reviewed',
+        'format': 'tsv',
+        'query': query
+    }
+
+    try:
+        response = requests.get(url, params=params, stream=True, timeout=60)
+        response.raise_for_status()
+
+        content = None
+        if response.headers.get('content-encoding') == 'gzip':
             try:
-                csv_reader = csv.DictReader(StringIO(content), delimiter='\t')
-                
-                for row_num, row in enumerate(csv_reader, 1):
-                    try:
-                        accession = row.get('Entry', '').strip()
-                        entry_name = row.get('Entry Name', '').strip()
-                        protein_name = row.get('Protein names', '').strip()
-                        pfam_refs = row.get('Pfam', '').strip()  
-                        oma_refs = row.get('OMA', '').strip()
-                        
-                        if not accession:
-                            continue
-                        
-                        protein_data = {
-                            'accession': accession,
-                            'entry_name': entry_name,
-                            'protein_name': protein_name,
-                            'pfam_refs': pfam_refs,
-                            'oma_refs': oma_refs
-                        }
-                        
-                        proteins.append(protein_data)
-                        
-                        # Extract OMA fingerprints (useful for Pfam-only queries)
-                        if oma_refs:
-                            oma_matches = re.findall(r'[A-Z]{7}', oma_refs)
-                            oma_fingerprints.update(oma_matches)
-                        
-                    except Exception as e:
-                        logger.debug(f"Error processing row {row_num}: {e}")
+                content = gzip.decompress(response.content).decode('utf-8', errors='replace')
+            except Exception:
+                params['compressed'] = 'false'
+                response = requests.get(url, params=params, stream=True, timeout=60)
+                response.raise_for_status()
+                content = response.text
+        else:
+            content = response.text
+
+        # Clean content
+        content = content.replace('\x00', '').replace('\r', '')
+        content = ''.join(c for c in content if c.isprintable() or c in '\t\n')
+
+        if not content.strip():
+            return [], set()
+
+        proteins = []
+        oma_fingerprints = set()
+
+        try:
+            csv_reader = csv.DictReader(StringIO(content), delimiter='\t')
+
+            for row_num, row in enumerate(csv_reader, 1):
+                try:
+                    accession = row.get('Entry', '').strip()
+                    entry_name = row.get('Entry Name', '').strip()
+                    protein_name = row.get('Protein names', '').strip()
+                    pfam_refs = row.get('Pfam', '').strip()
+                    oma_refs = row.get('OMA', '').strip()
+                    reviewed = row.get('Reviewed', '').strip().lower()
+                    uniprot_status = "Swiss-Prot" if reviewed == "reviewed" else "TrEMBL"
+
+                    if not accession:
                         continue
-                        
-            except csv.Error as e:
-                logger.error(f"CSV parsing error: {e}")
-                # Try to salvage what we can by processing line by line
-                lines = content.split('\n')
-                if len(lines) > 1:  # Skip header
-                    for line_num, line in enumerate(lines[1:], 2):
-                        try:
-                            if line.strip():
-                                parts = line.split('\t')
-                                if len(parts) >= 1 and parts[0].strip():
-                                    accession = parts[0].strip()
-                                    oma_refs = parts[4].strip() if len(parts) > 4 else ''
-                                    
-                                    proteins.append({
-                                        'accession': accession,
-                                        'entry_name': parts[1].strip() if len(parts) > 1 else '',
-                                        'protein_name': parts[2].strip() if len(parts) > 2 else '',
-                                        'pfam_refs': parts[3].strip() if len(parts) > 3 else '',
-                                        'oma_refs': oma_refs
-                                    })
-                                    
-                                    # Extract OMA fingerprints
-                                    if oma_refs:
-                                        oma_matches = re.findall(r'[A-Z]{7}', oma_refs)
-                                        oma_fingerprints.update(oma_matches)
-                        except Exception as e:
-                            logger.debug(f"Error processing line {line_num}: {e}")
-                            continue
-            
-            logger.info(f"Found {len(proteins)} proteins matching query")
-            if oma_fingerprints:
-                logger.info(f"Found {len(oma_fingerprints)} unique OMA fingerprints")
-            
-            return proteins, oma_fingerprints
-            
-        except requests.RequestException as e:
-            logger.error(f"Error fetching proteins: {e}")
-            return [], set()
-        except Exception as e:
-            logger.error(f"Error parsing protein data: {e}")
-            # Log the first few characters of content for debugging
-            if 'content' in locals() and content:
-                logger.debug(f"Content preview (first 200 chars): {repr(content[:200])}")
-            return [], set()
+
+                    protein_data = {
+                        'accession': accession,
+                        'entry_name': entry_name,
+                        'protein_name': protein_name,
+                        'pfam_refs': pfam_refs,
+                        'oma_refs': oma_refs,
+                        'uniprot_status': uniprot_status
+                    }
+
+                    proteins.append(protein_data)
+
+                    if oma_refs:
+                        oma_matches = re.findall(r'[A-Z]{7}', oma_refs)
+                        oma_fingerprints.update(oma_matches)
+
+                except Exception as e:
+                    logger.debug(f"Error processing row {row_num}: {e}")
+                    continue
+
+        except csv.Error as e:
+            logger.error(f"CSV parsing error: {e}")
+            # Fallback to line-by-line parsing
+            lines = content.split('\n')
+            if len(lines) > 1:
+                for line_num, line in enumerate(lines[1:], 2):
+                    try:
+                        if line.strip():
+                            parts = line.split('\t')
+                            if len(parts) >= 1 and parts[0].strip():
+                                accession = parts[0].strip()
+                                oma_refs = parts[4].strip() if len(parts) > 4 else ''
+                                reviewed = parts[5].strip().lower() if len(parts) > 5 else ''
+                                uniprot_status = "Swiss-Prot" if reviewed == "reviewed" else "TrEMBL"
+
+                                proteins.append({
+                                    'accession': accession,
+                                    'entry_name': parts[1].strip() if len(parts) > 1 else '',
+                                    'protein_name': parts[2].strip() if len(parts) > 2 else '',
+                                    'pfam_refs': parts[3].strip() if len(parts) > 3 else '',
+                                    'oma_refs': oma_refs,
+                                    'uniprot_status': uniprot_status
+                                })
+
+                                if oma_refs:
+                                    oma_matches = re.findall(r'[A-Z]{7}', oma_refs)
+                                    oma_fingerprints.update(oma_matches)
+                    except Exception as e:
+                        logger.debug(f"Error processing line {line_num}: {e}")
+                        continue
+
+        return proteins, oma_fingerprints
+
+    except requests.RequestException as e:
+        logger.error(f"Error fetching proteins: {e}")
+        return [], set()
+    except Exception as e:
+        logger.error(f"Error parsing protein data: {e}")
+        if 'content' in locals() and content:
+            logger.debug(f"Content preview (first 200 chars): {repr(content[:200])}")
+        return [], set()
+
 
     def get_total_oma_group_size(self, oma_fingerprint: str) -> int:
         """
