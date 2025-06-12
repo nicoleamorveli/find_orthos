@@ -358,6 +358,50 @@ class FastPfamOMAAnalyzer:
         except IOError as e:
             logger.error(f"Failed to write report to {output_file}: {e}")
             return f"Error: Failed to write report to {output_file}: {e}"
+    def main():
+        parser = argparse.ArgumentParser(
+            description="Fast analysis of Pfam families vs OMA ortholog groups using bulk UniProt API queries"
+        )
+        parser.add_argument("pfam_id", help="Pfam family ID (e.g., PF10181)")
+        parser.add_argument("--output", "-o", default="report.txt",
+                        help="Output file for the report (default: report.txt)")
+        parser.add_argument("--min-count", "-c", type=int, default=3,
+                        help="Minimum count threshold for OMA groups (default: 3)")
+        parser.add_argument("--verbose", "-v", action="store_true",
+                        help="Enable verbose logging")
 
-if __name__ == "__main__":
-    main()
+        args = parser.parse_args()
+
+        if args.verbose:
+            logging.getLogger().setLevel(logging.DEBUG)
+
+        if not re.match(r'^PF\d{5}$', args.pfam_id):
+            logger.error(f"Invalid Pfam ID format: {args.pfam_id}. Expected format: PF##### (e.g., PF10181)")
+            sys.exit(1)
+
+        try:
+            analyzer = FastPfamOMAAnalyzer()
+            results = analyzer.analyze_pfam_family(args.pfam_id, min_count=args.min_count)
+
+            if not results:
+                logger.error("Analysis failed - no results generated")
+                sys.exit(1)
+
+            report_status = analyzer.generate_report(results, args.output)
+            print(f"\nAnalysis complete! {report_status}")
+
+            # Print summary to console
+            print(f"\nSUMMARY:")
+            print(f"Pfam {args.pfam_id}: {results['pfam_protein_count']} proteins")
+            print(f"OMA groups (>={args.min_count} occurrences): {len(results['oma_fingerprints'])}")
+            print(f"Proteins unique to OMA: {results['unique_to_oma_count']}")
+
+        except KeyboardInterrupt:
+            logger.info("Analysis interrupted by user")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"Analysis failed with error: {e}")
+            sys.exit()
+
+    if __name__ == "__main__":
+        main()
